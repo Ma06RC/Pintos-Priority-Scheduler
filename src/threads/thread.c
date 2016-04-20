@@ -200,6 +200,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  
+  /* my code begins */
+  if(t->priority > thread_get_priority()){
+      thread_yield();  
+  }
+  /* my code ends */
 
   return tid;
 }
@@ -220,6 +226,20 @@ thread_block (void)
   schedule ();
 }
 
+/* my code begins */
+/* this method compares two threads with their associated priority, this helps the list to be ordered  */
+bool
+compare_priority(struct list_elem *a, struct list_elem *b){
+  struct thread *temp_a;
+  struct thread *temp_b;
+  
+  temp_a = list_entry(a, struct thread, elem);
+  temp_b = list_entry(b, struct thread, elem);
+  
+  return temp_a->priority > temp_b->priority;
+}
+/* my code ends */
+
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
    make the running thread ready.)
@@ -237,7 +257,12 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  
+  /* my code begins */
+  //list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, compare_priority, NULL);
+  /* my code ends */   
+  
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -308,7 +333,11 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    /* my code begins */
+    //list_push_back (&ready_list, &cur->elem);
+   list_insert_ordered(&ready_list, &cur->elem, compare_priority, NULL);
+   /* my code ends */  
+   
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -336,6 +365,13 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+   /* my code begins */
+  struct thread *t = list_entry(list_begin(&ready_list), struct thread, elem);
+    
+    if(t->priority> new_priority) {   //checks if the current running thread has a lower priority than the thread in front of the ready list, if so then yield
+      thread_yield();   
+    }
+   /* my code ends */
 }
 
 /* Returns the current thread's priority. */
